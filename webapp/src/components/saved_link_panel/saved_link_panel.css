@@ -1,0 +1,258 @@
+/* Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+   See LICENSE.txt for license information. */
+
+.SavedLinks-Panel {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.SavedLinks-Panel__toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-s);
+    padding: var(--spacing-s) var(--spacing-m) 0;
+}
+
+.SavedLinks-Panel__toolbarActions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xxs);
+}
+
+.SavedLinks-Panel__search {
+    padding: var(--spacing-s) var(--spacing-m);
+}
+
+.SavedLinks-Panel__folderHeader {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-m);
+    border-top: 1px solid rgba(var(--center-channel-color-rgb), 0.08);
+    border-bottom: 1px solid rgba(var(--center-channel-color-rgb), 0.08);
+}
+
+.SavedLinks-Panel__folderHeaderTitle {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    min-width: 0;
+    gap: var(--spacing-xxs);
+    color: var(--center-channel-color);
+    font-size: var(--font-size-100);
+    font-weight: var(--font-weight-semibold);
+}
+
+.SavedLinks-Panel__folderHeaderTitle .icon {
+    flex: none;
+    color: rgba(var(--center-channel-color-rgb), 0.64);
+}
+
+.SavedLinks-Panel__folderHeaderActions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xxs);
+}
+
+.SavedLinks-Panel__folderName {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.SavedLinks-Panel__folderCount {
+    flex: none;
+    color: rgba(var(--center-channel-color-rgb), 0.56);
+    font-size: var(--font-size-50);
+    font-weight: normal;
+}
+
+.SavedLinks-Panel__folderItem {
+    border-bottom: 1px solid rgba(var(--center-channel-color-rgb), 0.08);
+}
+
+.SavedLinks-Panel__folderButton {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-s) var(--spacing-m);
+    border: 0;
+    background: transparent;
+    color: var(--center-channel-color);
+    cursor: pointer;
+    font-size: var(--font-size-100);
+    text-align: left;
+}
+
+.SavedLinks-Panel__folderButton:hover {
+    background: rgba(var(--center-channel-color-rgb), 0.04);
+}
+
+.SavedLinks-Panel__folderButton:focus-visible {
+    outline: 2px solid var(--button-bg);
+    outline-offset: -2px;
+}
+
+.SavedLinks-Panel__folderButton .icon:first-child {
+    flex: none;
+    color: rgba(var(--center-channel-color-rgb), 0.64);
+}
+
+.SavedLinks-Panel__folderButton .icon:last-child {
+    flex: none;
+    color: rgba(var(--center-channel-color-rgb), 0.4);
+}
+
+.SavedLinks-Panel__centered {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-xl);
+}
+
+.SavedLinks-Panel__list {
+    flex: 1;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+}
+
+.SavedLinks-Panel__item {
+    display: flex;
+    gap: var(--spacing-s);
+    padding: var(--spacing-s) var(--spacing-m);
+    border-bottom: 1px solid rgba(var(--center-channel-color-rgb), 0.08);
+}
+
+.SavedLinks-Panel__item:hover {
+    background: rgba(var(--center-channel-color-rgb), 0.04);
+}
+
+.SavedLinks-Panel__item--dragging {
+    opacity: 0.5;
+}
+
+.SavedLinks-Panel__item--dropBefore {
+    box-shadow: inset 0 2px 0 var(--button-bg);
+}
+
+.SavedLinks-Panel__item--dropAfter {
+    box-shadow: inset 0 -2px 0 var(--button-bg);
+}
+
+.SavedLinks-Panel__dragHandle {
+    display: flex;
+    flex: none;
+    align-items: flex-start;
+    padding: 0;
+    border: 0;
+    margin-top: 2px;
+    background: transparent;
+    color: rgba(var(--center-channel-color-rgb), 0.4);
+    cursor: grab;
+}
+
+.SavedLinks-Panel__dragHandle:hover,
+.SavedLinks-Panel__dragHandle:focus-visible {
+    color: var(--center-channel-color);
+}
+
+.SavedLinks-Panel__dragHandle:active {
+    cursor: grabbing;
+}
+
+.SavedLinks-Panel__dragHandle:focus-visible {
+    outline: 2px solid var(--button-bg);
+    outline-offset: 2px;
+}
+
+.SavedLinks-Panel__itemMain {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    gap: var(--spacing-xxs);
+}
+
+.SavedLinks-Panel__title {
+    color: var(--center-channel-color);
+    font-size: var(--font-size-100);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--line-height-100);
+    overflow-wrap: anywhere;
+    text-decoration: none;
+}
+
+.SavedLinks-Panel__title:hover {
+    color: var(--button-bg);
+    text-decoration: underline;
+}
+
+.SavedLinks-Panel__url {
+    overflow: hidden;
+    color: rgba(var(--center-channel-color-rgb), 0.56);
+    font-size: var(--font-size-50);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.SavedLinks-Panel__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-xxs);
+    color: rgba(var(--center-channel-color-rgb), 0.64);
+    font-size: var(--font-size-50);
+}
+
+.SavedLinks-Panel__scope {
+    padding-right: var(--spacing-xs);
+    border-right: 1px solid rgba(var(--center-channel-color-rgb), 0.16);
+}
+
+.SavedLinks-Panel__folder {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xxs);
+    padding-right: var(--spacing-xs);
+    border-right: 1px solid rgba(var(--center-channel-color-rgb), 0.16);
+}
+
+.SavedLinks-Panel__dialogText {
+    margin: 0;
+    color: var(--center-channel-color);
+    font-size: var(--font-size-100);
+    line-height: var(--line-height-100);
+}
+
+.SavedLinks-Panel__source {
+    color: rgba(var(--center-channel-color-rgb), 0.56);
+    font-size: var(--font-size-50);
+}
+
+.SavedLinks-Panel__sourceLink {
+    color: var(--button-bg);
+    text-decoration: none;
+}
+
+.SavedLinks-Panel__sourceLink:hover {
+    text-decoration: underline;
+}
+
+.SavedLinks-Panel__actions {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-xxs);
+}
+
+.SavedLinks-Panel__pagination {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--spacing-s) var(--spacing-m);
+    border-top: 1px solid rgba(var(--center-channel-color-rgb), 0.08);
+}

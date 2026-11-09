@@ -1,0 +1,19 @@
+/* Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+   See LICENSE.txt for license information. */
+
+.SavedLinks-DialogOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: var(--spacing-xl) var(--spacing-m);
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.SavedLinks-Dialog {
+    width: min(100%, 600px);
+    margin: 0;
+}
