@@ -1,0 +1,15 @@
+/* Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+   See LICENSE.txt for license information. */
+
+.Bookmarks-BookmarksSidebar {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    background: var(--center-channel-bg);
+    color: var(--center-channel-color);
+}
+
+.Bookmarks-BookmarksSidebar__notice {
+    padding: var(--spacing-s) var(--spacing-m) 0;
+}

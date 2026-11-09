@@ -1,0 +1,118 @@
+/* Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+   See LICENSE.txt for license information. */
+
+.Bookmarks-BookmarkPanel {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.Bookmarks-BookmarkPanel__toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-s);
+    padding: var(--spacing-s) var(--spacing-m) 0;
+}
+
+.Bookmarks-BookmarkPanel__search {
+    padding: var(--spacing-s) var(--spacing-m);
+}
+
+.Bookmarks-BookmarkPanel__centered {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-xl);
+}
+
+.Bookmarks-BookmarkPanel__list {
+    flex: 1;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+}
+
+.Bookmarks-BookmarkPanel__item {
+    display: flex;
+    gap: var(--spacing-s);
+    padding: var(--spacing-s) var(--spacing-m);
+    border-bottom: 1px solid rgba(var(--center-channel-color-rgb), 0.08);
+}
+
+.Bookmarks-BookmarkPanel__item:hover {
+    background: rgba(var(--center-channel-color-rgb), 0.04);
+}
+
+.Bookmarks-BookmarkPanel__itemMain {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    gap: var(--spacing-xxs);
+}
+
+.Bookmarks-BookmarkPanel__title {
+    color: var(--center-channel-color);
+    font-size: var(--font-size-100);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--line-height-100);
+    overflow-wrap: anywhere;
+    text-decoration: none;
+}
+
+.Bookmarks-BookmarkPanel__title:hover {
+    color: var(--button-bg);
+    text-decoration: underline;
+}
+
+.Bookmarks-BookmarkPanel__url {
+    overflow: hidden;
+    color: rgba(var(--center-channel-color-rgb), 0.56);
+    font-size: var(--font-size-50);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.Bookmarks-BookmarkPanel__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-xxs);
+    color: rgba(var(--center-channel-color-rgb), 0.64);
+    font-size: var(--font-size-50);
+}
+
+.Bookmarks-BookmarkPanel__scope {
+    padding-right: var(--spacing-xs);
+    border-right: 1px solid rgba(var(--center-channel-color-rgb), 0.16);
+}
+
+.Bookmarks-BookmarkPanel__source {
+    color: rgba(var(--center-channel-color-rgb), 0.56);
+    font-size: var(--font-size-50);
+}
+
+.Bookmarks-BookmarkPanel__sourceLink {
+    color: var(--button-bg);
+    text-decoration: none;
+}
+
+.Bookmarks-BookmarkPanel__sourceLink:hover {
+    text-decoration: underline;
+}
+
+.Bookmarks-BookmarkPanel__actions {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-xxs);
+}
+
+.Bookmarks-BookmarkPanel__pagination {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--spacing-s) var(--spacing-m);
+    border-top: 1px solid rgba(var(--center-channel-color-rgb), 0.08);
+}

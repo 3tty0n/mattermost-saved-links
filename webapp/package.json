@@ -1,0 +1,97 @@
+{
+  "private": true,
+  "scripts": {
+    "build": "webpack --mode=production",
+    "build:watch": "webpack --mode=production --watch",
+    "debug": "webpack --mode=none",
+    "debug:watch": "webpack --mode=development --watch",
+    "lint": "eslint --ignore-pattern node_modules --ignore-pattern dist --ext=.js,.jsx,tsx,ts . --quiet --cache",
+    "fix": "eslint --ignore-pattern node_modules --ignore-pattern dist --ext=.js,.jsx,tsx,ts . --quiet --fix --cache",
+    "test": "jest --forceExit --detectOpenHandles --verbose",
+    "test:watch": "jest --watch",
+    "test-ci": "jest --forceExit --detectOpenHandles --maxWorkers=2",
+    "check-types": "tsc"
+  },
+  "devDependencies": {
+    "@babel/core": "7.29.7",
+    "@babel/preset-env": "7.29.7",
+    "@babel/preset-react": "7.29.7",
+    "@babel/preset-typescript": "7.29.7",
+    "@mattermost/client": "11.9.0",
+    "@mattermost/eslint-plugin": "1.1.0-0",
+    "@mattermost/types": "11.9.0",
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/jest-dom": "6.10.0",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.8",
+    "@types/jest": "30.0.0",
+    "@types/node": "24.19.2",
+    "@types/react": "18.2.64",
+    "@types/react-dom": "18.2.25",
+    "@typescript-eslint/eslint-plugin": "7.18.0",
+    "@typescript-eslint/parser": "7.18.0",
+    "babel-loader": "10.1.1",
+    "css-loader": "7.1.5",
+    "eslint": "8.57.1",
+    "eslint-plugin-import": "2.32.0",
+    "eslint-plugin-react": "7.37.5",
+    "eslint-plugin-react-hooks": "4.6.0",
+    "identity-obj-proxy": "3.0.0",
+    "jest": "30.5.2",
+    "jest-environment-jsdom": "30.5.2",
+    "jest-junit": "17.0.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-intl": "7.1.14",
+    "react-redux": "9.2.0",
+    "redux": "5.0.1",
+    "style-loader": "4.0.0",
+    "typescript": "5.6.3",
+    "webpack": "5.112.2",
+    "webpack-cli": "6.0.1"
+  },
+  "dependencies": {
+    "@mattermost/compass-icons": "0.1.63",
+    "@mattermost/compass-ui": "0.1.0-alpha.15",
+    "core-js": "3.51.0",
+    "simplebar-react": "3.3.2"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "testEnvironmentOptions": {
+      "url": "http://localhost:8065"
+    },
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/non_npm_dependencies/"
+    ],
+    "clearMocks": true,
+    "collectCoverageFrom": [
+      "src/**/*.{js,jsx,ts,tsx}"
+    ],
+    "coverageReporters": [
+      "lcov",
+      "text-summary"
+    ],
+    "moduleNameMapper": {
+      "^.+\\.(jpg|jpeg|png|gif|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga)$": "identity-obj-proxy",
+      "^.+\\.css$": "identity-obj-proxy",
+      "^.*i18n.*\\.(json)$": "<rootDir>/tests/i18n_mock.json"
+    },
+    "moduleDirectories": [
+      "src",
+      "node_modules",
+      "non_npm_dependencies"
+    ],
+    "reporters": [
+      "default",
+      "jest-junit"
+    ],
+    "transformIgnorePatterns": [
+      "node_modules/(?!@mattermost/compass-ui|@mattermost/compass-icons)"
+    ],
+    "setupFilesAfterEnv": [
+      "<rootDir>/tests/setup.tsx"
+    ]
+  }
+}

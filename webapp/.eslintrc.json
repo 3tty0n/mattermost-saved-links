@@ -1,0 +1,13 @@
+{
+  "root": true,
+  "extends": [
+    "plugin:@mattermost/react"
+  ],
+  "rules": {
+    "header/header": "off",
+    "react/jsx-uses-react": "off",
+    "react/react-in-jsx-scope": "off",
+    "react/no-danger": "error",
+    "react/jsx-no-script-url": "error"
+  }
+}
