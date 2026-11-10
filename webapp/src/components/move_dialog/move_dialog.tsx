@@ -45,7 +45,8 @@ export default function MoveDialog({title, teamId, channelId, hint, onMove, onCl
         {value: TEAM_LEVEL, label: intl.formatMessage({id: 'savedLinks.editor.team_level', defaultMessage: 'Team-level (no channel)'})},
         ...myChannels.
             filter((item) => item.team_id === team && (item.type === 'O' || item.type === 'P')).
-            map((item) => ({value: item.id, label: item.display_name})),
+            map((item) => ({value: item.id, label: item.display_name})).
+            sort((a, b) => a.label.localeCompare(b.label)),
     ];
     if (channel && !channelOptions.some((option) => option.value === channel)) {
         channelOptions.push({value: channel, label: intl.formatMessage({id: 'savedLinks.editor.current_channel', defaultMessage: 'Current channel'})});

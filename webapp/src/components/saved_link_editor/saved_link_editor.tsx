@@ -78,7 +78,8 @@ export default function SavedLinkEditor({savedLink, defaults, onClose, onSaved}:
     }
     const channelOptions = myChannels.
         filter((channel) => channel.team_id === teamID && (channel.type === 'O' || channel.type === 'P')).
-        map((channel) => ({value: channel.id, label: channel.display_name}));
+        map((channel) => ({value: channel.id, label: channel.display_name})).
+        sort((a, b) => a.label.localeCompare(b.label));
     channelOptions.unshift({value: TEAM_LEVEL, label: intl.formatMessage({id: 'savedLinks.editor.team_level', defaultMessage: 'Team-level (no channel)'})});
     if (channelID && !channelOptions.some((option) => option.value === channelID)) {
         channelOptions.push({value: channelID, label: intl.formatMessage({id: 'savedLinks.editor.current_channel', defaultMessage: 'Current channel'})});

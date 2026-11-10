@@ -646,6 +646,12 @@ export default function SavedLinkPanel({teamId, channelId, revision, onCreate, o
                                     glyph={<ChevronRightIcon/>}
                                 />
                             </button>
+                            <IconButton
+                                size='small'
+                                icon={<Icon glyph={<FolderMoveOutlineIcon/>}/>}
+                                aria-label={intl.formatMessage({id: 'savedLinks.folder.move_named', defaultMessage: 'Move folder {name}'}, {name: folder.name})}
+                                onClick={() => setMoving({folder})}
+                            />
                         </li>
                     ))}
                     {items.map((savedLink) => {

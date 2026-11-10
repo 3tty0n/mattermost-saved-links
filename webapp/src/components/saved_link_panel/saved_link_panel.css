@@ -71,11 +71,16 @@
 }
 
 .SavedLinks-Panel__folderItem {
+    display: flex;
+    align-items: center;
+    padding-right: var(--spacing-s);
     border-bottom: 1px solid rgba(var(--center-channel-color-rgb), 0.08);
 }
 
 .SavedLinks-Panel__folderButton {
     display: flex;
+    flex: 1;
+    min-width: 0;
     align-items: center;
     width: 100%;
     gap: var(--spacing-xs);

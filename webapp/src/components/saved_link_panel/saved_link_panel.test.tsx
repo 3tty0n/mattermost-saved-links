@@ -229,6 +229,17 @@ describe('SavedLinkPanel', () => {
         expect(onDeleted).toHaveBeenCalled();
     });
 
+    it('lists team-level first and channels alphabetically in the move dialog', async () => {
+        const user = userEvent.setup();
+        renderPanel();
+        await screen.findByRole('link', {name: 'Runbook'});
+
+        await user.click(screen.getByRole('button', {name: 'Move saved link'}));
+        await user.click(within(screen.getByRole('dialog')).getByRole('combobox', {name: 'Scope'}));
+
+        expect((await screen.findAllByRole('option')).map((option) => option.textContent)).toEqual(['Team-level (no channel)', 'Off-Topic', 'Town Square']);
+    });
+
     it('moves a folder to team level', async () => {
         const user = userEvent.setup();
         fetchFoldersMock.mockResolvedValue({items: [folderSummary], total: 1});
@@ -243,6 +254,20 @@ describe('SavedLinkPanel', () => {
         await user.click(dialog.getByRole('button', {name: 'Move'}));
 
         await waitFor(() => expect(updateFolderMock).toHaveBeenCalledWith(folderSummary.id, {teamId: ids.team, channelId: ''}));
+    });
+
+    it('moves a folder from the folder list to another channel', async () => {
+        const user = userEvent.setup();
+        fetchFoldersMock.mockResolvedValue({items: [folderSummary], total: 1});
+        renderPanel();
+
+        await user.click(await screen.findByRole('button', {name: 'Move folder Work'}));
+        const dialog = within(screen.getByRole('dialog'));
+        await user.click(dialog.getByRole('combobox', {name: 'Scope'}));
+        await user.click(await screen.findByRole('option', {name: 'Off-Topic'}));
+        await user.click(dialog.getByRole('button', {name: 'Move'}));
+
+        await waitFor(() => expect(updateFolderMock).toHaveBeenCalledWith(folderSummary.id, {teamId: ids.team, channelId: ids.otherChannel}));
     });
 
     it('deletes a folder and refreshes the list', async () => {
