@@ -95,12 +95,14 @@ type CreateFolderInput struct {
 
 // FolderPatch is a partial folder update. A nil pointer means unchanged.
 type FolderPatch struct {
-	Name *string
+	Name      *string
+	TeamID    *string
+	ChannelID *string
 }
 
 // IsZero reports whether the patch changes nothing.
 func (p FolderPatch) IsZero() bool {
-	return p.Name == nil
+	return p.Name == nil && p.TeamID == nil && p.ChannelID == nil
 }
 
 // NormalizeFolderName trims a folder name and enforces its size limit.

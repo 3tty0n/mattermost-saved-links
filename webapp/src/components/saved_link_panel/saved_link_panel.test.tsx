@@ -3,7 +3,7 @@
 
 import {fireEvent, screen, waitFor, within} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import {createFolder, deleteSavedLink, deleteFolder, fetchSavedLinks, fetchFolders, reorderSavedLinks, updateFolder} from 'client';
+import {createFolder, deleteSavedLink, deleteFolder, fetchSavedLinks, fetchFolders, reorderSavedLinks, updateFolder, updateSavedLink} from 'client';
 
 import type {SavedLinkSummary, Folder, FolderSummary, ListResult} from 'types';
 
@@ -32,6 +32,7 @@ const fetchFoldersMock = fetchFolders as jest.MockedFunction<typeof fetchFolders
 const deleteSavedLinkMock = deleteSavedLink as jest.MockedFunction<typeof deleteSavedLink>;
 const createFolderMock = createFolder as jest.MockedFunction<typeof createFolder>;
 const updateFolderMock = updateFolder as jest.MockedFunction<typeof updateFolder>;
+const updateSavedLinkMock = updateSavedLink as jest.MockedFunction<typeof updateSavedLink>;
 const deleteFolderMock = deleteFolder as jest.MockedFunction<typeof deleteFolder>;
 const reorderSavedLinksMock = reorderSavedLinks as jest.MockedFunction<typeof reorderSavedLinks>;
 
@@ -103,6 +104,7 @@ describe('SavedLinkPanel', () => {
         deleteSavedLinkMock.mockResolvedValue();
         createFolderMock.mockResolvedValue(folder);
         updateFolderMock.mockResolvedValue(folder);
+        updateSavedLinkMock.mockResolvedValue({...savedLink, version: 1});
         deleteFolderMock.mockResolvedValue();
         reorderSavedLinksMock.mockResolvedValue();
     });
@@ -210,6 +212,39 @@ describe('SavedLinkPanel', () => {
         await waitFor(() => expect(updateFolderMock).toHaveBeenCalledWith(folderSummary.id, {name: 'Reference'}));
     });
 
+    it('moves a saved link to another channel', async () => {
+        const user = userEvent.setup();
+        const onDeleted = jest.fn();
+        renderPanel({onDeleted});
+        await screen.findByRole('link', {name: 'Runbook'});
+
+        await user.click(screen.getByRole('button', {name: 'Move saved link'}));
+        const dialog = within(screen.getByRole('dialog'));
+        expect(dialog.getByRole('button', {name: 'Move'})).toBeDisabled();
+        await user.click(dialog.getByRole('combobox', {name: 'Scope'}));
+        await user.click(await screen.findByRole('option', {name: 'Off-Topic'}));
+        await user.click(dialog.getByRole('button', {name: 'Move'}));
+
+        await waitFor(() => expect(updateSavedLinkMock).toHaveBeenCalledWith(savedLink.id, {teamId: ids.team, channelId: ids.otherChannel}));
+        expect(onDeleted).toHaveBeenCalled();
+    });
+
+    it('moves a folder to team level', async () => {
+        const user = userEvent.setup();
+        fetchFoldersMock.mockResolvedValue({items: [folderSummary], total: 1});
+        renderPanel();
+        await screen.findByRole('link', {name: 'Runbook'});
+        await openWorkFolder(user);
+
+        await user.click(screen.getByRole('button', {name: 'Move folder'}));
+        const dialog = within(screen.getByRole('dialog'));
+        await user.click(dialog.getByRole('combobox', {name: 'Scope'}));
+        await user.click(await screen.findByRole('option', {name: 'Team-level (no channel)'}));
+        await user.click(dialog.getByRole('button', {name: 'Move'}));
+
+        await waitFor(() => expect(updateFolderMock).toHaveBeenCalledWith(folderSummary.id, {teamId: ids.team, channelId: ''}));
+    });
+
     it('deletes a folder and refreshes the list', async () => {
         const user = userEvent.setup();
         const onDeleted = jest.fn();
@@ -250,6 +285,61 @@ describe('SavedLinkPanel', () => {
         await user.keyboard('{ArrowUp}');
 
         await waitFor(() => expect(reorderSavedLinksMock).toHaveBeenCalledWith(['link-2', 'link-1']));
+    });
+
+    it('reorders twice in a row with the keyboard', async () => {
+        const user = userEvent.setup();
+        let current = [savedLink, secondSavedLink];
+        fetchSavedLinksMock.mockImplementation(async () => page(current));
+        reorderSavedLinksMock.mockImplementation(async (ids) => {
+            const byID = new Map(current.map((item) => [item.id, item]));
+            current = ids.map((id) => byID.get(id) as SavedLinkSummary);
+        });
+        renderPanel();
+        await screen.findByRole('link', {name: 'Runbook'});
+
+        const handles = await screen.findAllByRole('button', {name: /Drag to reorder/});
+        handles[1].focus();
+        await user.keyboard('{ArrowUp}');
+        await waitFor(() => expect(reorderSavedLinksMock).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(screen.getAllByRole('link').map((link) => link.textContent)).toEqual(['Design', 'Runbook']));
+        await user.keyboard('{ArrowDown}');
+        await waitFor(() => expect(reorderSavedLinksMock).toHaveBeenCalledTimes(2));
+        expect(reorderSavedLinksMock).toHaveBeenLastCalledWith(['link-1', 'link-2']);
+    });
+
+    it('reorders twice in a row by dragging', async () => {
+        let current = [savedLink, secondSavedLink];
+        fetchSavedLinksMock.mockImplementation(async () => page(current));
+        reorderSavedLinksMock.mockImplementation(async (ids) => {
+            const byID = new Map(current.map((item) => [item.id, item]));
+            current = ids.map((id) => byID.get(id) as SavedLinkSummary);
+        });
+        renderPanel();
+        const firstLink = await screen.findByRole('link', {name: 'Runbook'});
+        const firstRow = firstLink.closest('li') as HTMLElement;
+        const handles = await screen.findAllByRole('button', {name: /Drag to reorder/});
+        const dataTransfer = {
+            effectAllowed: '',
+            dropEffect: '',
+            setData: jest.fn(),
+        };
+
+        fireEvent.dragStart(handles[1], {dataTransfer});
+        fireEvent.dragOver(firstRow, {clientY: 0, dataTransfer});
+        fireEvent.drop(firstRow, {clientY: 0, dataTransfer});
+        await waitFor(() => expect(reorderSavedLinksMock).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(screen.getAllByRole('link').map((link) => link.textContent)).toEqual(['Design', 'Runbook']));
+
+        // Drag Runbook back above Design.
+        const rows = screen.getAllByRole('link').map((link) => link.closest('li') as HTMLElement);
+        const handlesAfterMove = screen.getAllByRole('button', {name: /Drag to reorder/});
+        fireEvent.dragStart(handlesAfterMove[1], {dataTransfer});
+        fireEvent.dragOver(rows[0], {clientY: 0, dataTransfer});
+        fireEvent.drop(rows[0], {clientY: 0, dataTransfer});
+
+        await waitFor(() => expect(reorderSavedLinksMock).toHaveBeenCalledTimes(2));
+        expect(reorderSavedLinksMock).toHaveBeenLastCalledWith(['link-1', 'link-2']);
     });
 
     it('reorders saved links by dragging a row', async () => {

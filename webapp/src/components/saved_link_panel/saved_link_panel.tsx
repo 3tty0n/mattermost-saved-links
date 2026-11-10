@@ -1,15 +1,16 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {deleteSavedLink, deleteFolder, getSitePath, reorderSavedLinks} from 'client';
+import {deleteSavedLink, deleteFolder, getSitePath, reorderSavedLinks, updateFolder, updateSavedLink} from 'client';
 import {useSavedLinks, useDebouncedValue, useFolders} from 'hooks';
-import {useEffect, useState, type DragEvent, type KeyboardEvent, type ReactNode} from 'react';
+import {useEffect, useRef, useState, type DragEvent, type KeyboardEvent, type ReactNode} from 'react';
 import {FormattedMessage, useIntl} from 'react-intl';
 import {useSelector} from 'react-redux';
 
 import ArrowLeftIcon from '@mattermost/compass-icons/components/arrow-left';
 import ChevronRightIcon from '@mattermost/compass-icons/components/chevron-right';
 import DragVerticalIcon from '@mattermost/compass-icons/components/drag-vertical';
+import FolderMoveOutlineIcon from '@mattermost/compass-icons/components/folder-move-outline';
 import FolderOutlineIcon from '@mattermost/compass-icons/components/folder-outline';
 import FolderPlusOutlineIcon from '@mattermost/compass-icons/components/folder-plus-outline';
 import PencilOutlineIcon from '@mattermost/compass-icons/components/pencil-outline';
@@ -29,6 +30,7 @@ import {selectAllChannels, selectTeams} from 'selectors';
 
 import Dialog from 'components/dialog/dialog';
 import FolderEditor from 'components/folder_editor/folder_editor';
+import MoveDialog from 'components/move_dialog/move_dialog';
 
 import type {SavedLinkScope, SavedLinkSummary, Folder, FolderSummary} from 'types';
 
@@ -85,11 +87,14 @@ export default function SavedLinkPanel({teamId, channelId, revision, onCreate, o
     const [currentFolder, setCurrentFolder] = useState<FolderSummary>();
     const [folderEditor, setFolderEditor] = useState<{folder?: FolderSummary}>();
     const [folderToDelete, setFolderToDelete] = useState<FolderSummary>();
+    const [moving, setMoving] = useState<{savedLink?: SavedLinkSummary; folder?: FolderSummary}>();
     const [folderActionError, setFolderActionError] = useState<string>();
     const [deletingFolder, setDeletingFolder] = useState(false);
     const [draggedID, setDraggedID] = useState<string>();
     const [dropTarget, setDropTarget] = useState<DropTarget>();
-    const [reordering, setReordering] = useState(false);
+    const [pendingItems, setPendingItems] = useState<SavedLinkSummary[] | null>(null);
+    const reorderingRef = useRef(false);
+    const queuedReorderRef = useRef<SavedLinkSummary[] | null>(null);
 
     useEffect(() => {
         if (scope === 'channel' && !channelId) {
@@ -104,6 +109,7 @@ export default function SavedLinkPanel({teamId, channelId, revision, onCreate, o
         setCurrentFolder(undefined);
         setFolderEditor(undefined);
         setFolderToDelete(undefined);
+        setMoving(undefined);
         setFolderActionError(undefined);
         setSortError(undefined);
         setDraggedID(undefined);
@@ -143,14 +149,40 @@ export default function SavedLinkPanel({teamId, channelId, revision, onCreate, o
         perPage: 100,
     } : null;
     const {data, loading, error} = useSavedLinks(query, revision + reload);
-    const items = data?.items ?? [];
+    const serverItems = data?.items ?? [];
+
+    // Keep the order the user just made until the server confirms it. This keeps the list stable
+    // while the reorder request and the follow-up refresh are in flight.
+    const items = pendingItems ?? serverItems;
+
+    useEffect(() => {
+        if (!pendingItems || loading || !data) {
+            return;
+        }
+        const serverIDs = data.items.map((savedLink) => savedLink.id);
+        const pendingIDs = pendingItems.map((savedLink) => savedLink.id);
+        const sameItems = serverIDs.length === pendingIDs.length && serverIDs.every((id) => pendingIDs.includes(id));
+        if (!sameItems) {
+            setPendingItems(null);
+            return;
+        }
+        if (serverIDs.every((id, index) => id === pendingIDs[index])) {
+            setPendingItems(null);
+        }
+    }, [data, loading, pendingItems]);
 
     const uniformGroup = items.length > 1 && items.every((savedLink) => savedLinkGroupKey(savedLink) === savedLinkGroupKey(items[0]));
-    const canSort = !searchActive && scope !== 'all' && Boolean(data) && !data?.hasMore && page === 0 && uniformGroup && !reordering;
+    const canSort = !searchActive && scope !== 'all' && Boolean(data) && !data?.hasMore && page === 0 && uniformGroup;
 
     useEffect(() => {
         setPage(0);
     }, [scope, currentFolderID, debouncedSearch, teamId, channelId]);
+
+    // A different page or scope shows a different list, so an optimistic order no longer applies.
+    useEffect(() => {
+        setPendingItems(null);
+        queuedReorderRef.current = null;
+    }, [page, scope, folderID, debouncedSearch, teamId, channelId]);
 
     useEffect(() => {
         if (data && data.items.length === 0 && data.total > 0 && page > 0) {
@@ -265,22 +297,57 @@ export default function SavedLinkPanel({teamId, channelId, revision, onCreate, o
         setReload((value) => value + 1);
     };
 
-    const submitReorder = async (nextItems: SavedLinkSummary[]) => {
-        if (reordering || nextItems.length === 0) {
+    const move = async (newTeamID: string, newChannelID: string) => {
+        if (moving?.folder) {
+            await updateFolder(moving.folder.id, {teamId: newTeamID, channelId: newChannelID});
+            setCurrentFolder(undefined);
+        } else if (moving?.savedLink) {
+            await updateSavedLink(moving.savedLink.id, {teamId: newTeamID, channelId: newChannelID});
+        }
+        setMoving(undefined);
+        setReload((value) => value + 1);
+        onDeleted();
+    };
+
+    const sendReorder = async (nextItems: SavedLinkSummary[]): Promise<void> => {
+        queuedReorderRef.current = null;
+        try {
+            await reorderSavedLinks(nextItems.map((savedLink) => savedLink.id));
+        } catch (err) {
+            queuedReorderRef.current = null;
+            setPendingItems(null);
+            setSortError(err instanceof Error ? err.message : String(err));
+            setReload((value) => value + 1);
+            reorderingRef.current = false;
             return;
         }
-        setReordering(true);
+        const queued = queuedReorderRef.current;
+        if (queued) {
+            await sendReorder(queued);
+            return;
+        }
+        setReload((value) => value + 1);
+        reorderingRef.current = false;
+    };
+
+    const flushReorder = (nextItems: SavedLinkSummary[]) => {
         setSortError(undefined);
         setDraggedID(undefined);
         setDropTarget(undefined);
-        try {
-            await reorderSavedLinks(nextItems.map((savedLink) => savedLink.id));
-            setReload((value) => value + 1);
-        } catch (err) {
-            setSortError(err instanceof Error ? err.message : String(err));
-            setReload((value) => value + 1);
-        } finally {
-            setReordering(false);
+        reorderingRef.current = true;
+        sendReorder(nextItems);
+    };
+
+    // Show the new order immediately and queue it. Requests are sent one at a time so rapid moves
+    // build on the optimistic order instead of racing each other.
+    const submitReorder = (nextItems: SavedLinkSummary[]) => {
+        if (nextItems.length === 0) {
+            return;
+        }
+        setPendingItems(nextItems);
+        queuedReorderRef.current = nextItems;
+        if (!reorderingRef.current) {
+            flushReorder(nextItems);
         }
     };
 
@@ -410,8 +477,12 @@ export default function SavedLinkPanel({teamId, channelId, revision, onCreate, o
         );
     }
 
+    const movingTarget = moving?.folder ?? moving?.savedLink;
     const showEmpty = !loading && !error && data && items.length === 0 && foldersToShow.length === 0 && !foldersState.loading;
-    const showList = !loading && !error && data && (foldersToShow.length > 0 || items.length > 0);
+
+    // Keep the current rows mounted during a background refresh: swapping them for a spinner would
+    // drop keyboard focus, scroll position and an in-progress drag.
+    const showList = Boolean(data) && (foldersToShow.length > 0 || items.length > 0);
 
     return (
         <div className='SavedLinks-Panel'>
@@ -456,7 +527,10 @@ export default function SavedLinkPanel({teamId, channelId, revision, onCreate, o
                         onClick={closeFolder}
                     />
                     <div className='SavedLinks-Panel__folderHeaderTitle'>
-                        <Icon glyph={<FolderOutlineIcon/>}/>
+                        <Icon
+                            size='16'
+                            glyph={<FolderOutlineIcon/>}
+                        />
                         <span className='SavedLinks-Panel__folderName'>{currentFolder.name}</span>
                         <span className='SavedLinks-Panel__folderCount'>{currentFolder.savedLinkCount}</span>
                     </div>
@@ -466,6 +540,12 @@ export default function SavedLinkPanel({teamId, channelId, revision, onCreate, o
                             icon={<Icon glyph={<PencilOutlineIcon/>}/>}
                             aria-label={intl.formatMessage({id: 'savedLinks.folder.rename', defaultMessage: 'Rename folder'})}
                             onClick={() => setFolderEditor({folder: currentFolder})}
+                        />
+                        <IconButton
+                            size='small'
+                            icon={<Icon glyph={<FolderMoveOutlineIcon/>}/>}
+                            aria-label={intl.formatMessage({id: 'savedLinks.folder.move', defaultMessage: 'Move folder'})}
+                            onClick={() => setMoving({folder: currentFolder})}
                         />
                         <IconButton
                             size='small'
@@ -510,7 +590,7 @@ export default function SavedLinkPanel({teamId, channelId, revision, onCreate, o
                     onPrimaryAction={() => setReload((value) => value + 1)}
                 />
             )}
-            {loading && (
+            {loading && !data && (
                 <div className='SavedLinks-Panel__centered'>
                     <Spinner aria-label={intl.formatMessage({id: 'savedLinks.loading', defaultMessage: 'Loading…'})}/>
                 </div>
@@ -555,10 +635,16 @@ export default function SavedLinkPanel({teamId, channelId, revision, onCreate, o
                                 }, {name: folder.name, count: folder.savedLinkCount})}
                                 onClick={() => openFolder(folder)}
                             >
-                                <Icon glyph={<FolderOutlineIcon/>}/>
+                                <Icon
+                                    size='16'
+                                    glyph={<FolderOutlineIcon/>}
+                                />
                                 <span className='SavedLinks-Panel__folderName'>{folder.name}</span>
                                 <span className='SavedLinks-Panel__folderCount'>{folder.savedLinkCount}</span>
-                                <Icon glyph={<ChevronRightIcon/>}/>
+                                <Icon
+                                    size='16'
+                                    glyph={<ChevronRightIcon/>}
+                                />
                             </button>
                         </li>
                     ))}
@@ -614,7 +700,10 @@ export default function SavedLinkPanel({teamId, channelId, revision, onCreate, o
                                         <span className='SavedLinks-Panel__scope'>{labelFor(savedLink)}</span>
                                         {folder && (
                                             <span className='SavedLinks-Panel__folder'>
-                                                <Icon glyph={<FolderOutlineIcon/>}/>
+                                                <Icon
+                                                    size='10'
+                                                    glyph={<FolderOutlineIcon/>}
+                                                />
                                                 {folder.name}
                                             </span>
                                         )}
@@ -680,6 +769,14 @@ export default function SavedLinkPanel({teamId, channelId, revision, onCreate, o
                                                 aria-label={intl.formatMessage({id: 'savedLinks.link.edit', defaultMessage: 'Edit saved link'})}
                                                 onClick={() => onEdit(savedLink.id)}
                                             />
+                                            {!savedLink.sourcePostId && (
+                                                <IconButton
+                                                    size='small'
+                                                    icon={<Icon glyph={<FolderMoveOutlineIcon/>}/>}
+                                                    aria-label={intl.formatMessage({id: 'savedLinks.link.move', defaultMessage: 'Move saved link'})}
+                                                    onClick={() => setMoving({savedLink})}
+                                                />
+                                            )}
                                             <IconButton
                                                 size='small'
                                                 icon={<Icon glyph={<TrashCanOutlineIcon/>}/>}
@@ -729,6 +826,36 @@ export default function SavedLinkPanel({teamId, channelId, revision, onCreate, o
                     channelId={folderChannelId}
                     onClose={() => setFolderEditor(undefined)}
                     onSaved={folderSaved}
+                />
+            )}
+            {movingTarget && (
+                <MoveDialog
+                    title={moving?.folder ? (
+                        <FormattedMessage
+                            id='savedLinks.folder.move_title'
+                            defaultMessage='Move folder'
+                        />
+                    ) : (
+                        <FormattedMessage
+                            id='savedLinks.link.move_title'
+                            defaultMessage='Move saved link'
+                        />
+                    )}
+                    teamId={movingTarget.teamId}
+                    channelId={movingTarget.channelId}
+                    hint={moving?.folder ? (
+                        <FormattedMessage
+                            id='savedLinks.folder.move_hint'
+                            defaultMessage='The folder and the saved links in it move together.'
+                        />
+                    ) : (
+                        <FormattedMessage
+                            id='savedLinks.link.move_hint'
+                            defaultMessage='The saved link leaves its folder when it moves.'
+                        />
+                    )}
+                    onMove={move}
+                    onClose={() => setMoving(undefined)}
                 />
             )}
             {folderToDelete && (

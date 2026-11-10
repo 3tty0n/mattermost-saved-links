@@ -24,11 +24,13 @@ func (req createFolderRequest) input() savedlinkmodel.CreateFolderInput {
 }
 
 type updateFolderRequest struct {
-	Name *string `json:"name"`
+	Name      *string `json:"name"`
+	TeamID    *string `json:"teamId"`
+	ChannelID *string `json:"channelId"`
 }
 
 func (req updateFolderRequest) patch() savedlinkmodel.FolderPatch {
-	return savedlinkmodel.FolderPatch{Name: req.Name}
+	return savedlinkmodel.FolderPatch{Name: req.Name, TeamID: req.TeamID, ChannelID: req.ChannelID}
 }
 
 func (h *Handler) handleListFolders(w http.ResponseWriter, r *http.Request) {

@@ -15,6 +15,7 @@ import {TextInput} from '@mattermost/compass-ui/components/text-input';
 import {selectCurrentTeam, selectMyChannels, selectMyTeams} from 'selectors';
 
 import Dialog from 'components/dialog/dialog';
+import {TEAM_LEVEL} from 'components/move_dialog/move_dialog';
 
 import type {SavedLink} from 'types';
 
@@ -78,7 +79,7 @@ export default function SavedLinkEditor({savedLink, defaults, onClose, onSaved}:
     const channelOptions = myChannels.
         filter((channel) => channel.team_id === teamID && (channel.type === 'O' || channel.type === 'P')).
         map((channel) => ({value: channel.id, label: channel.display_name}));
-    channelOptions.unshift({value: '', label: intl.formatMessage({id: 'savedLinks.editor.team_level', defaultMessage: 'Team-level (no channel)'})});
+    channelOptions.unshift({value: TEAM_LEVEL, label: intl.formatMessage({id: 'savedLinks.editor.team_level', defaultMessage: 'Team-level (no channel)'})});
     if (channelID && !channelOptions.some((option) => option.value === channelID)) {
         channelOptions.push({value: channelID, label: intl.formatMessage({id: 'savedLinks.editor.current_channel', defaultMessage: 'Current channel'})});
     }
@@ -241,10 +242,10 @@ export default function SavedLinkEditor({savedLink, defaults, onClose, onSaved}:
                     <Select
                         label={intl.formatMessage({id: 'savedLinks.editor.channel', defaultMessage: 'Scope'})}
                         options={channelOptions}
-                        value={channelID}
+                        value={channelID || TEAM_LEVEL}
                         disabled={Boolean(savedLink?.sourcePostId || defaults?.sourcePostId)}
                         onChange={(value) => {
-                            setChannelID(value);
+                            setChannelID(value === TEAM_LEVEL ? '' : value);
                             setFolderID(NO_FOLDER);
                         }}
                     />

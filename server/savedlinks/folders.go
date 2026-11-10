@@ -118,7 +118,8 @@ func (s *Service) ListFolders(actorID, teamID, channelID string) (*FolderListRes
 	return &FolderListResult{Items: items, Total: len(items)}, nil
 }
 
-// UpdateFolder renames a folder. Only its creator or an administrator may change it.
+// UpdateFolder renames a folder and/or moves it, with its saved links, to another team or channel.
+// Only its creator or an administrator may change it.
 func (s *Service) UpdateFolder(c *plugin.Context, path, actorID, folderID string, patch model.FolderPatch) (*model.Folder, error) {
 	if !mmodel.IsValidId(actorID) {
 		return nil, model.ErrForbidden
@@ -143,35 +144,113 @@ func (s *Service) UpdateFolder(c *plugin.Context, path, actorID, folderID string
 	defer s.recordAudit(rec)
 	mmodel.AddEventParameterToAuditRec(rec, "folder_id", folderID)
 
+	var movedFrom *access.Scope
 	next, err := s.store.UpdateFolder(folderID, func(current *model.Folder) (*model.Folder, error) {
+		movedFrom = nil // the store may retry this callback
 		if !s.access.CanView(actorID, current.TeamID, current.ChannelID) {
 			return nil, model.ErrNotFound
 		}
 		if current.CreatorID != actorID && !s.access.IsAdmin(actorID) {
 			return nil, model.ErrForbidden
 		}
+
+		oldScope := &access.Scope{TeamID: current.TeamID, ChannelID: current.ChannelID}
+		target := oldScope
+		newTeam, newChannel := current.TeamID, current.ChannelID
+		if patch.TeamID != nil {
+			newTeam = *patch.TeamID
+		}
+		if patch.ChannelID != nil {
+			newChannel = *patch.ChannelID
+		}
+		if newTeam != current.TeamID || newChannel != current.ChannelID {
+			resolved, resolveErr := s.access.Resolve(actorID, newTeam, newChannel)
+			if resolveErr != nil {
+				return nil, resolveErr
+			}
+			if resolved.TeamID != current.TeamID || resolved.ChannelID != current.ChannelID {
+				target = resolved
+				movedFrom = oldScope
+			}
+		}
+
+		name := current.Name
 		if normalizedName != nil {
-			refs, listErr := s.listFolderRefs(&access.Scope{TeamID: current.TeamID, ChannelID: current.ChannelID})
+			name = *normalizedName
+		}
+		if normalizedName != nil || movedFrom != nil {
+			refs, listErr := s.listFolderRefs(target)
 			if listErr != nil {
 				return nil, listErr
 			}
+			if movedFrom != nil && len(refs) >= model.MaxFoldersPerScope {
+				return nil, fmt.Errorf("%w: a scope can have at most %d folders", model.ErrInvalid, model.MaxFoldersPerScope)
+			}
 			for _, ref := range refs {
-				if ref.ID != current.ID && strings.EqualFold(ref.Name, *normalizedName) {
+				if ref.ID != current.ID && strings.EqualFold(ref.Name, name) {
 					return nil, fmt.Errorf("%w: a folder with this name already exists", model.ErrInvalid)
 				}
 			}
-			current.Name = *normalizedName
 		}
+		if movedFrom != nil {
+			linkRefs, listErr := s.savedLinkRefsInScope(movedFrom)
+			if listErr != nil {
+				return nil, listErr
+			}
+			for _, ref := range linkRefs {
+				if ref.FolderID == current.ID && ref.SourcePostID != "" {
+					return nil, fmt.Errorf("%w: a folder with saved links from a post can not be moved", model.ErrInvalid)
+				}
+			}
+		}
+
+		current.Name = name
+		current.TeamID = target.TeamID
+		current.ChannelID = target.ChannelID
 		return current, nil
 	})
 	if err != nil {
 		return nil, mapStoreError(err)
 	}
 
+	if movedFrom != nil {
+		// shortcut: not atomic, a store failure here leaves the remaining links in the old scope.
+		if err := s.moveFolderSavedLinks(movedFrom, next); err != nil {
+			return nil, err
+		}
+	}
+
 	addFolderAuditIDs(rec, next)
 	rec.Success()
 	s.publishFolder("updated", next)
 	return next, nil
+}
+
+// moveFolderSavedLinks moves the saved links of a folder from its old scope to the folder's scope.
+func (s *Service) moveFolderSavedLinks(from *access.Scope, folder *model.Folder) error {
+	refs, err := s.savedLinkRefsInScope(from)
+	if err != nil {
+		return err
+	}
+	var errs []error
+	for _, ref := range refs {
+		if ref.FolderID != folder.ID {
+			continue
+		}
+		updated, updateErr := s.store.UpdateSavedLink(ref.ID, func(savedLink *model.SavedLink) (*model.SavedLink, error) {
+			if savedLink.FolderID == folder.ID {
+				savedLink.TeamID = folder.TeamID
+				savedLink.ChannelID = folder.ChannelID
+			}
+			return savedLink, nil
+		})
+		if updateErr != nil {
+			errs = append(errs, fmt.Errorf("failed to move saved link %s: %w", ref.ID, updateErr))
+			continue
+		}
+		s.publish("updated", updated)
+	}
+	return errors.Join(errs...)
 }
 
 // DeleteFolder removes a folder and ungroups its savedlinks. The saved links themselves are kept.

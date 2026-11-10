@@ -70,8 +70,6 @@ func (s *KVStore) UpdateFolder(id string, mutate func(current *savedlinkmodel.Fo
 			return nil, ErrNotFound
 		}
 		next.ID = current.ID
-		next.TeamID = current.TeamID
-		next.ChannelID = current.ChannelID
 		next.CreatorID = current.CreatorID
 		next.CreatedAt = current.CreatedAt
 		next.Version = current.Version + 1

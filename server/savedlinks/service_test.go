@@ -567,3 +567,51 @@ func TestFolderPermissions(t *testing.T) {
 func ptr[T any](value T) *T {
 	return &value
 }
+
+func TestMoveFolderMovesItsSavedLinks(t *testing.T) {
+	env := newTestEnv(t)
+	teamID, channelID, otherChannelID, actorID, postID := model.NewId(), model.NewId(), model.NewId(), model.NewId(), model.NewId()
+	allowChannel(env.api, actorID, channelID, teamID)
+	allowChannel(env.api, actorID, otherChannelID, teamID)
+	env.api.On("GetPost", postID).Return(&model.Post{Id: postID, ChannelId: channelID}, nil).Maybe()
+
+	folder, err := env.service.CreateFolder(nil, "/folders", actorID, savedlinkmodel.CreateFolderInput{ChannelID: channelID, Name: "Work"})
+	require.NoError(t, err)
+	savedLink, err := env.service.Create(nil, "/saved-links", actorID, savedlinkmodel.CreateSavedLinkInput{
+		ChannelID: channelID, FolderID: folder.ID, URL: "https://example.com/docs",
+	})
+	require.NoError(t, err)
+
+	moved, err := env.service.UpdateFolder(nil, "/folders", actorID, folder.ID, savedlinkmodel.FolderPatch{TeamID: &teamID, ChannelID: &otherChannelID})
+	require.NoError(t, err)
+	assert.Equal(t, otherChannelID, moved.ChannelID)
+
+	got, err := env.store.GetSavedLink(savedLink.ID)
+	require.NoError(t, err)
+	assert.Equal(t, otherChannelID, got.ChannelID)
+	assert.Equal(t, folder.ID, got.FolderID)
+	oldFolders, err := env.service.ListFolders(actorID, "", channelID)
+	require.NoError(t, err)
+	assert.Empty(t, oldFolders.Items)
+	newFolders, err := env.service.ListFolders(actorID, "", otherChannelID)
+	require.NoError(t, err)
+	require.Len(t, newFolders.Items, 1)
+	assert.Equal(t, 1, newFolders.Items[0].SavedLinkCount)
+
+	// A name clash in the destination blocks the move.
+	_, err = env.service.CreateFolder(nil, "/folders", actorID, savedlinkmodel.CreateFolderInput{ChannelID: channelID, Name: "Work"})
+	require.NoError(t, err)
+	clash, err := env.service.CreateFolder(nil, "/folders", actorID, savedlinkmodel.CreateFolderInput{ChannelID: channelID, Name: "Other"})
+	require.NoError(t, err)
+	name := "work"
+	_, err = env.service.UpdateFolder(nil, "/folders", actorID, clash.ID, savedlinkmodel.FolderPatch{Name: &name, TeamID: &teamID, ChannelID: &otherChannelID})
+	assert.ErrorIs(t, err, savedlinkmodel.ErrInvalid)
+
+	// A folder holding a link saved from a post stays where the post is.
+	_, err = env.service.Create(nil, "/saved-links", actorID, savedlinkmodel.CreateSavedLinkInput{
+		ChannelID: channelID, FolderID: clash.ID, URL: "https://example.com/post", SourcePostID: postID,
+	})
+	require.NoError(t, err)
+	_, err = env.service.UpdateFolder(nil, "/folders", actorID, clash.ID, savedlinkmodel.FolderPatch{TeamID: &teamID, ChannelID: &otherChannelID})
+	assert.ErrorIs(t, err, savedlinkmodel.ErrInvalid)
+}

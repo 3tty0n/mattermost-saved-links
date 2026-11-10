@@ -89,6 +89,8 @@ export type CreateFolderInput = {
 
 export type UpdateFolderInput = {
     name?: string;
+    teamId?: string;
+    channelId?: string;
 };
 
 export type ComposerRequest = {
